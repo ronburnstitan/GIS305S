@@ -1,66 +1,53 @@
 import arcpy
 
 
-def intersect(layer_list, input_lyr_name):
-
-    # Run a intersect analysis between the two buffer layers (needs to be a list of layers to intersect)
-    arcpy.Intersect_analysis(layer_list, input_lyr_name)
-
+def intersect(layer_list, output_path):
+    # Intersect the buffer layers and save to the output path
+    arcpy.Intersect_analysis(layer_list, output_path)
 
 
 def buffer_layer(input_gdb, input_layer, dist):
-    # Run a buffer analysis on the input_layer with a user specified distance
-
-    # Distance units are always miles
+    # Add units to the distance
     units = " miles"
     dist = dist + units
-    # Output layer will always be named input layer + "_buf
-    output_layer = r"C:\Users\David Neufeld\Documents\ArcGIS\GIS305\Projects\ModelBuilder\ModelBuilder.gdb\\" + input_layer + "_buf"
-    # Always use buffer parameters FULL, ROUND, ALL
+    # Create buffer output path
+    output_layer = r"C:\Users\rburn\Documents\APPS305\APPS305\APPS305.gdb\\" + input_layer + "_buf"
     buf_layer = input_gdb + input_layer
-    arcpy.Buffer_analysis(buf_layer, output_layer,
-                          dist, "FULL", "ROUND", "ALL")
+    arcpy.Buffer_analysis(buf_layer, output_layer, dist, "FULL", "ROUND", "ALL")
     return output_layer
 
 
 def main():
-    # Define your workspace and point it at the modelbuilder.gdb
-    arcpy.env.workspace = r"C:\Users\David Neufeld\Documents\ArcGIS\GIS305\Projects\ModelBuilder\ModelBuilder.gdb\\"
+    # Define workspace
+    workspace = r"C:\Users\rburn\Documents\APPS305\APPS305\APPS305.gdb\\"
+    arcpy.env.workspace = workspace
     arcpy.env.overwriteOutput = True
 
-    # Buffer cities
-    input_gdb = r"C:\Users\David Neufeld\Documents\ArcGIS\GIS305\Data\Admin\AdminData.gdb\USA\\"
+    # === GET PARAMETERS ===
+    river_dist = arcpy.GetParameterAsText(0)          # Param 0: River Buffer Distance
+    cities_dist = arcpy.GetParameterAsText(1)         # Param 1: Cities Buffer Distance
+    intersect_lyr_name = arcpy.GetParameterAsText(2)  # Param 2: Intersect Layer Name (e.g., model3)
 
-    # Change me this next line below to use GetParamters!!
-    dist = input("What buffer distance do you want to use?")
+    # Input GDB for base data
+    input_gdb = r"C:\Users\rburn\Documents\APPS305\Admin\Admin\AdminData.gdb\USA\\"
 
-    buf_cities = buffer_layer(input_gdb, "cities", dist)
+    # Buffer cities and rivers
+    buf_cities = buffer_layer(input_gdb, "cities", cities_dist)
+    arcpy.AddMessage("Buffer layer " + buf_cities + " created.")
 
-    # Change me this next line below to use GetParamters!!
-    print("Buffer layer " + buf_cities + " created.")
+    buf_rivers = buffer_layer(input_gdb, "us_rivers", river_dist)
+    arcpy.AddMessage("Buffer layer " + buf_rivers + " created.")
 
-    # Buffer rivers
-    # Change me this next line below to use GetParamters!!
-    dist = input("What buffer distance do you want to use?")
-    buf_rivers = buffer_layer(input_gdb, "us_rivers", dist)
-    print("Buffer layer " + buf_rivers + " created.")
-
-    # Define lyr_list variable
-    # with names of input layers to intersect
-    # Ask the user to define an output layer name
-    # Change me this next line below to use GetParamters!!
-    intersect_lyr_name = input("What is the name for your output layer resulting from the intersect analysis? ")
+    # Intersect both buffers
     lyr_list = [buf_rivers, buf_cities]
-    intersect(lyr_list, intersect_lyr_name)
-    print(f"New intersect layer generated called: {intersect_lyr_name}")
+    output_intersect = workspace + intersect_lyr_name
+    intersect(lyr_list, output_intersect)
+    arcpy.AddMessage(f"New intersect layer created: {output_intersect}")
 
-    # Get the project
-    aprx = arcpy.mp.ArcGISProject(
-        r"c:\Users\David Neufeld\Documents\ArcGIS\GIS305\Projects\ModelBuilder\ModelBuilder.ap"
-        r"rx")
+    # Add to current map
+    aprx = arcpy.mp.ArcGISProject(r"C:\Users\rburn\Documents\APPS305\APPS305\APPS305.aprx")
     map_doc = aprx.listMaps()[0]
-    map_doc.addDataFromPath(rf"C:\Users\David Neufeld\Documents\ArcGIS\GIS305\Projects\ModelBuilder\ModelBuilder.gdb\{intersect_lyr_name}")
-
+    map_doc.addDataFromPath(output_intersect)
     aprx.save()
 
 
